@@ -1,25 +1,13 @@
+-- 1. TABLAS MAESTRAS
 CREATE TABLE proyectos (
     id SERIAL PRIMARY KEY,
     nombre VARCHAR(255) NOT NULL,
     descripcion VARCHAR(255),
-    ubicacion VARCHAR(255), -- Dirección de la obra
-    presupuesto NUMERIC(15, 2), -- Siempre usa NUMERIC para dinero, nunca FLOAT
-    presupuesto_usado NUMERIC(15, 2), -- Siempre usa NUMERIC para dinero, nunca FLOAT
-    estado VARCHAR(50) DEFAULT 'ejecucion', -- ejecucion, paralizada, finalizada
-    porcentaje_avance NUMERIC(5, 2) DEFAULT 0, -- 0.00 a 100.00
-    fecha_inicio DATE,
-    fecha_final_estimada DATE,
-    fecha_final_real DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE partidas (
-    id SERIAL PRIMARY KEY,
-    proyecto_id INTEGER REFERENCES proyectos(id) ON DELETE CASCADE,
-    nombre_partida VARCHAR(100),
-    descripcion VARCHAR(255) NOT NULL,
-    monto_total NUMERIC(12, 2),
+    ubicacion VARCHAR(255),
+    presupuesto NUMERIC(15, 2),
+    presupuesto_usado NUMERIC(15, 2) DEFAULT 0,
+    estado VARCHAR(50) DEFAULT 'ejecucion',
+    porcentaje_avance NUMERIC(5, 2) DEFAULT 0,
     fecha_inicio DATE,
     fecha_final_estimada DATE,
     fecha_final_real DATE,
@@ -29,6 +17,7 @@ CREATE TABLE partidas (
 
 CREATE TABLE responsables (
     id SERIAL PRIMARY KEY,
+    cedula INTEGER UNIQUE NOT NULL CHECK (cedula > 0 AND cedula <= 99999999),
     nombre_completo VARCHAR(255) NOT NULL,
     especialidad VARCHAR(100),
     email VARCHAR(100) UNIQUE,
@@ -37,14 +26,36 @@ CREATE TABLE responsables (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 2. TABLA INTERMEDIA (EQUIPO)
 CREATE TABLE proyecto_responsables (
     proyecto_id INTEGER REFERENCES proyectos(id) ON DELETE CASCADE,
     responsable_id INTEGER REFERENCES responsables(id) ON DELETE CASCADE,
-    rol VARCHAR(100), -- Ej: Residente de obra, Inspector, Gerente
-    PRIMARY KEY (proyecto_id, responsable_id), -- Evita que se duplique el mismo responsable en el mismo proyecto
+    rol VARCHAR(100),
+    PRIMARY KEY (proyecto_id, responsable_id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 3. TABLA DE PARTIDAS (REFERENCIA A LA INTERMEDIA)
+CREATE TABLE partidas (
+    id SERIAL PRIMARY KEY,
+    proyecto_id INTEGER NOT NULL,
+    responsable_id INTEGER,
+    nombre_partida VARCHAR(100),
+    descripcion VARCHAR(255) NOT NULL,
+    monto_total NUMERIC(12, 2),
+    fecha_inicio DATE,
+    fecha_final_estimada DATE,
+    fecha_final_real DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_partida_responsable_proyecto 
+        FOREIGN KEY (proyecto_id, responsable_id) 
+        REFERENCES proyecto_responsables(proyecto_id, responsable_id)
+        ON DELETE SET NULL
+);
+
+--- FUNCIONES Y TRIGGERS ---
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -54,7 +65,41 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+CREATE OR REPLACE FUNCTION fn_actualizar_estado_proyecto()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_proyecto_id INTEGER;
+    total_partidas INTEGER;
+    partidas_finalizadas INTEGER;
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        target_proyecto_id := OLD.proyecto_id;
+    ELSE
+        target_proyecto_id := NEW.proyecto_id;
+    END IF;
+
+    SELECT COUNT(*) INTO total_partidas FROM partidas WHERE proyecto_id = target_proyecto_id;
+    SELECT COUNT(*) INTO partidas_finalizadas FROM partidas WHERE proyecto_id = target_proyecto_id AND fecha_final_real IS NOT NULL;
+
+    UPDATE proyectos 
+    SET 
+        porcentaje_avance = CASE WHEN total_partidas > 0 THEN (partidas_finalizadas::NUMERIC / total_partidas::NUMERIC) * 100 ELSE 0 END,
+        estado = CASE WHEN total_partidas > 0 AND total_partidas = partidas_finalizadas THEN 'finalizada' ELSE 'ejecucion' END,
+        fecha_final_real = CASE WHEN total_partidas > 0 AND total_partidas = partidas_finalizadas THEN CURRENT_DATE ELSE NULL END
+    WHERE id = target_proyecto_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_update_proyecto_avance
+AFTER INSERT OR UPDATE OR DELETE ON partidas
+FOR EACH ROW EXECUTE PROCEDURE fn_actualizar_estado_proyecto();
+
 CREATE TRIGGER update_proyectos_modtime BEFORE UPDATE ON proyectos FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE TRIGGER update_partidas_modtime BEFORE UPDATE ON partidas FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE TRIGGER update_responsables_modtime BEFORE UPDATE ON responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 CREATE TRIGGER update_proyecto_responsables_modtime BEFORE UPDATE ON proyecto_responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
