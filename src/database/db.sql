@@ -103,3 +103,17 @@ CREATE TRIGGER update_partidas_modtime BEFORE UPDATE ON partidas FOR EACH ROW EX
 CREATE TRIGGER update_responsables_modtime BEFORE UPDATE ON responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 CREATE TRIGGER update_proyecto_responsables_modtime BEFORE UPDATE ON proyecto_responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- VISTAS --
+
+CREATE OR REPLACE VIEW vista_proyecto_staff AS
+SELECT 
+    pr.proyecto_id,
+    r.id AS responsable_id,
+    r.nombre_completo,
+    r.especialidad,
+    r.email,
+    pr.rol,
+    pr.created_at AS asignado_el
+FROM proyecto_responsables pr
+JOIN responsables r ON pr.responsable_id = r.id;
