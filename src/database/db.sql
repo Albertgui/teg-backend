@@ -117,3 +117,23 @@ SELECT
     pr.created_at AS asignado_el
 FROM proyecto_responsables pr
 JOIN responsables r ON pr.responsable_id = r.id;
+
+CREATE OR REPLACE VIEW vista_partidas AS
+SELECT 
+    p.id AS partida_id,
+    p.nombre_partida,
+    pr.nombre AS nombre_proyecto,
+    p.descripcion,
+    r.nombre_completo AS nombre_responsable,
+    prr.rol AS rol_responsable,
+    p.monto_total AS presupuesto,
+    p.created_at AS asignado_el,
+    CASE 
+        WHEN p.fecha_final_real IS NULL THEN 0 
+        ELSE 1 
+    END AS estatus
+FROM partidas p
+INNER JOIN proyectos pr ON p.proyecto_id = pr.id
+LEFT JOIN proyecto_responsables prr ON p.proyecto_id = prr.proyecto_id 
+    AND p.responsable_id = prr.responsable_id
+LEFT JOIN responsables r ON prr.responsable_id = r.id;

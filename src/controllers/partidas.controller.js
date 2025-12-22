@@ -14,6 +14,20 @@ export const getAllPartidas = async(req, res) => {
     }
 }
 
+// Obtener vista de las partidas
+export const getAllPartidasView = async(req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT * FROM vista_partidas ORDER BY estatus ASC, asignado_el DESC');
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No hay partidas registradas' });
+        }
+        return res.status(200).json({ message: 'Datos encontrados con éxito', data: rows });
+    } catch (error) {
+        console.error("Error al obtener todas las partidas:", error);
+        return res.status(500).json({message: 'Error interno del servidor'});
+    }
+}
+
 // Obtener partida por ID
 export const getPartidaByID = async(req, res) => {
     const params = req.params;

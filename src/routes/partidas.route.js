@@ -1,5 +1,5 @@
 import Router from 'express';
-import { createPartida, deletePartida, editPartida, getAllPartidas, getPartidaByID } from '../controllers/partidas.controller.js';
+import { createPartida, deletePartida, editPartida, getAllPartidas, getAllPartidasView, getPartidaByID } from '../controllers/partidas.controller.js';
 import { validateSchema } from '../middlewares/validator.middleware.js';
 import { createPartidaSchema, editPartidaSchema, partidasIdSchema } from '../schemas/partidas.schema.js';
 
@@ -7,6 +7,9 @@ const router = Router();
 
 // Obtener todas las partidas
 router.get('/partidas', getAllPartidas);
+
+// Obtener vista de las partidas
+router.get('/partidas/view', getAllPartidasView)
 
 // Obtener una partida por ID
 router.get('/partidas/:id', validateSchema(partidasIdSchema, 'params'), getPartidaByID);
