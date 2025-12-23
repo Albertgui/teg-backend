@@ -121,13 +121,16 @@ JOIN responsables r ON pr.responsable_id = r.id;
 CREATE OR REPLACE VIEW vista_partidas AS
 SELECT 
     p.id AS partida_id,
+    pr.id AS proyecto_id,
+    prr.responsable_id AS responsable_id,
     p.nombre_partida,
     pr.nombre AS nombre_proyecto,
     p.descripcion,
     r.nombre_completo AS nombre_responsable,
     prr.rol AS rol_responsable,
     p.monto_total AS presupuesto,
-    p.created_at AS asignado_el,
+    p.fecha_inicio AS asignado_el,
+    p.fecha_final_estimada AS finaliza_en,
     CASE 
         WHEN p.fecha_final_real IS NULL THEN 0 
         ELSE 1 
