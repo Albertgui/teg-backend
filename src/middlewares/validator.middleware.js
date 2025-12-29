@@ -1,16 +1,26 @@
-// Validar si el body es válido y darle formato a los datos
+import { ZodError } from 'zod';
+
 export const validateSchema = (schema, target = 'body') => (req, res, next) => {
     try {
-        const validatedData = schema.parse(req[target]);
+        const validatedData = schema.parse(req[target] || {});
         req[target] = validatedData;
         next();
     } catch (error) {
-        return res.status(400).json({
+        console.log("== ERROR DE VALIDACIÓN DETECTADO ==");
+        if (error instanceof ZodError) {
+            return res.status(400).json({
+                success: false,
+                errors: error.issues.map((issue) => ({
+                    field: issue.path[issue.path.length - 1],
+                    message: issue.message,
+                })),
+            });
+        }
+        console.error("Error no relacionado con Zod:", error);
+        return res.status(500).json({
             success: false,
-            errors: error.errors.map((err) => ({
-                field: err.path[0],
-                message: err.message,
-            })),
+            message: "Error interno del servidor",
+            error: error.message
         });
     }
 };

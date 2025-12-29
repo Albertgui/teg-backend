@@ -73,7 +73,7 @@ export const editPartida = async(req, res) => {
     const { id } = params;
     const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = body
     try {
-        const { rows } = await pool.query('UPDATE partida SET proyecto_id = COALESCE($1, proyecto_id), responsable_id = COALESCE($2, responsable_id), nombre_partida = COALESCE($3, nombre_partida), descripcion = COALESCE($4, descripcion), monto_total = COALESCE($5, monto_total), fecha_inicio = COALESCE($6, fecha_inicio), fecha_final_estimada = COALESCE($7, fecha_final_estimada) WHERE id = $8 RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada, id ]);
+        const { rows } = await pool.query('UPDATE partidas SET proyecto_id = COALESCE($1, proyecto_id), responsable_id = COALESCE($2, responsable_id), nombre_partida = COALESCE($3, nombre_partida), descripcion = COALESCE($4, descripcion), monto_total = COALESCE($5, monto_total), fecha_inicio = COALESCE($6, fecha_inicio), fecha_final_estimada = COALESCE($7, fecha_final_estimada) WHERE id = $8 RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada, id ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No es posible editar la partida' });
         }
