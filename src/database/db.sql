@@ -55,6 +55,14 @@ CREATE TABLE partidas (
         ON DELETE SET NULL
 );
 
+CREATE TABLE tm_user (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL,
+    pass VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 --- FUNCIONES Y TRIGGERS ---
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -103,6 +111,53 @@ CREATE TRIGGER update_partidas_modtime BEFORE UPDATE ON partidas FOR EACH ROW EX
 CREATE TRIGGER update_responsables_modtime BEFORE UPDATE ON responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 CREATE TRIGGER update_proyecto_responsables_modtime BEFORE UPDATE ON proyecto_responsables FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE OR REPLACE FUNCTION fn_actualizar_estado_proyecto()
+RETURNS TRIGGER AS $$
+DECLARE
+    target_proyecto_id INTEGER;
+    total_partidas INTEGER;
+    partidas_finalizadas INTEGER;
+    presupuesto_gastado NUMERIC(15, 2); 
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        target_proyecto_id := OLD.proyecto_id;
+    ELSE
+        target_proyecto_id := NEW.proyecto_id;
+    END IF;
+
+    SELECT COUNT(*) INTO total_partidas 
+    FROM partidas 
+    WHERE proyecto_id = target_proyecto_id;
+
+    SELECT COUNT(*) INTO partidas_finalizadas 
+    FROM partidas 
+    WHERE proyecto_id = target_proyecto_id AND fecha_final_real IS NOT NULL;
+
+    SELECT COALESCE(SUM(monto_total), 0) INTO presupuesto_gastado 
+    FROM partidas 
+    WHERE proyecto_id = target_proyecto_id AND fecha_final_real IS NOT NULL;
+
+    UPDATE proyectos 
+    SET 
+        porcentaje_avance = CASE 
+            WHEN total_partidas > 0 THEN (partidas_finalizadas::NUMERIC / total_partidas::NUMERIC) * 100 
+            ELSE 0 
+        END,
+        estado = CASE 
+            WHEN total_partidas > 0 AND total_partidas = partidas_finalizadas THEN 'finalizada' 
+            ELSE 'ejecucion' 
+        END,
+        fecha_final_real = CASE 
+            WHEN total_partidas > 0 AND total_partidas = partidas_finalizadas THEN CURRENT_DATE 
+            ELSE NULL 
+        END,
+        presupuesto_usado = presupuesto_gastado
+    WHERE id = target_proyecto_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
 
 -- VISTAS --
 

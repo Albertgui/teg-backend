@@ -90,6 +90,30 @@ export const editPartida = async(req, res) => {
     }
 }
 
+// Completar una partida
+export const completePartida = async(req, res) => {
+    const params = req.params;
+    const body = req.body;
+    const { id } = params;
+    const fechaActual = new Date().toISOString();
+    try {
+        const { rows } = await pool.query('UPDATE partidas SET fecha_final_real = COALESCE($1, fecha_final_real) WHERE id = $2 RETURNING *', [ fechaActual, id ]);
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No es posible editar la partida' });
+        }
+        return res.status(200).json({ message: 'Partida editada con éxito', data: rows[0] });
+    } catch (error) {
+        if (error.code === '23503') {
+            return res.status(400).json({
+                success: false,
+                message: 'Error de integridad: El proyecto o responsable no son válidos.'
+            });
+        }
+        console.error("Error al editar la partida:", error);
+        return res.status(500).json({message: 'Error interno del servidor'});
+    }
+}
+
 // Eliminar partida
 export const deletePartida = async(req, res) => {
     const param = req.params;
