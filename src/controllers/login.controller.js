@@ -10,7 +10,7 @@ export const createUser = async(req, res) => {
     try {
         const {username, pass} = req.body;
         if (!username || !pass) {
-            return res.status(404).json({ message: 'Los datos no fueron enviados de forma correcta' })
+            return res.status(404).json({ message: 'Los datos no fueron enviados de forma correcta' });
         }
         const isValid = await validarUser(username);
         const parsedUser = username.toLowerCase();
@@ -31,20 +31,16 @@ export const createUser = async(req, res) => {
 // Editar un usuario
 export const editUser = async(req, res) => {
     try {
+        const { id } = req.params;
         const {username, pass} = req.body;
         if (!username || !pass) {
-            return res.status(404).json({ message: 'Los datos no fueron enviados de forma correcta' })
+            return res.status(404).json({ message: 'Los datos no fueron enviados de forma correcta' });
         }
-        const isValid = await validarUser(username);
         const parsedUser = username.toLowerCase();
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(pass, salt);
-        if (!isValid) {
-            const { rows } = await pool.query(`UPDATE tm_user SET username = COALESCE($1, username), pass = COALESCE($2, pass) RETURNING *`, [parsedUser, passwordHash]);
-            return res.json({ message: 'Se ha creado el usuario con éxito', data: rows });
-        }else {
-            return res.json({ message: `El nombre de usuario ${username} ya está registrado` });
-        }
+        const { rows } = await pool.query(`UPDATE tm_user SET username = COALESCE($1, username), pass = COALESCE($2, pass) WHERE id = $3 RETURNING *`, [parsedUser, passwordHash, id]);
+            return res.json({ message: 'Se ha editado el usuario con éxito', data: rows });
     } catch (error) {
         console.log(error)
         res.status(500).json({message: 'Error interno del servidor'});
@@ -64,6 +60,7 @@ export const loginUser = async(req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
         const userFound = result.rows[0];
+        console.log(userFound.pass, pass)
         const isMatch = await bcrypt.compare(pass, userFound.pass);
         if (!isMatch) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
@@ -72,10 +69,11 @@ export const loginUser = async(req, res) => {
             name: username
         }, secretKey, {
             expiresIn: '1h'
-        })
+        });
         const { pass: _, ...userPublicData } = userFound;
         return res.status(200).json({ message: 'Login exitoso', user: userPublicData, token: token });
-    } catch {
+    } catch(error) {
+        console.log(error)
         res.status(500).json({message: 'Error interno del servidor'});
     }
 }
