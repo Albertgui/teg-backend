@@ -6,7 +6,7 @@ import { validarToken } from '../middlewares/login.middleware.js';
 
 const router = Router();
 
-// Obtener todos los proyectos 
+// Obtener todos los proyectos por usuario
 router.get('/proyectos', validarToken, getAllProject);
 
 // Obtener un proyecto por ID

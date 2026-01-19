@@ -49,7 +49,7 @@ export const createPartida = async(req, res) => {
     const body = req.body;
     const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = body;
     try {
-        const { rows } = await pool.query('INSERT INTO partidas (proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada) VALUES ( $1, $2, $3, $4, $5, $6, $7) RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada ]);
+        const { rows } = await pool.query('INSERT INTO partidas (proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No es posible crear la partida' });
         }

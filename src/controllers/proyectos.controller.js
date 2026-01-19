@@ -19,7 +19,7 @@ export const getProjectById = async(req, res) => {
     const params = req.params;
     const { id } = params;
     try {
-        const { rows } = await pool.query('SELECT * FROM proyectos WHERE id = $1', [ id ]);
+        const { rows } = await pool.query('SELECT * FROM proyectos WHERE id_user = $1', [ id ]);
         if (rows.length === 0) {
             return res.status(404).json({message: 'No hay registros asociados a ese proyecto'});
         }

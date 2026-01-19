@@ -1,6 +1,7 @@
 -- 1. TABLAS MAESTRAS
 CREATE TABLE proyectos (
     id SERIAL PRIMARY KEY,
+    id_user INTEGER NOT NULL
     nombre VARCHAR(255) NOT NULL,
     descripcion VARCHAR(255),
     ubicacion VARCHAR(255),
