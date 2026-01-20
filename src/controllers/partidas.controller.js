@@ -17,9 +17,10 @@ export const getAllPartidas = async(req, res) => {
 
 // Obtener vista de las partidas
 export const getAllPartidasView = async(req, res) => {
+    const { id } = req.params;
     const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('SELECT v.* FROM vista_partidas v INNER JOIN proyectos pr ON v.proyecto_id = pr.id WHERE pr.id_user = $1 ORDER BY v.estatus ASC, v.asignado_el DESC', [ id_user ]);
+        const { rows } = await pool.query('SELECT v.* FROM vista_partidas v INNER JOIN proyectos pr ON v.proyecto_id = pr.id WHERE proyecto_id = $1 AND pr.id_user = $2 ORDER BY v.estatus ASC, v.asignado_el DESC', [ id, id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No hay partidas registradas' });
         }

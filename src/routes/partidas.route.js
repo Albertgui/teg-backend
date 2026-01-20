@@ -10,7 +10,7 @@ const router = Router();
 router.get('/partidas', validarToken, getAllPartidas);
 
 // Obtener vista de las partidas
-router.get('/partidas/view', validarToken, getAllPartidasView)
+router.get('/partidas/view/:id', validarToken, getAllPartidasView)
 
 // Obtener una partida por ID
 router.get('/partidas/:id', validarToken, validateSchema(partidasIdSchema, 'params'), getPartidaByID);
