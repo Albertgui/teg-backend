@@ -7,7 +7,7 @@ import { validarToken } from '../middlewares/login.middleware.js';
 const router = Router();
 
 // Obtener todos los proyectos por usuario
-router.get('/proyectos', validarToken, getAllProject);
+router.get('/view-proyectos', validarToken, getAllProject);
 
 // Obtener un proyecto por ID
 router.get('/proyectos/:id', validarToken, validateSchema(projectIdSchema, 'params'), getProjectById);

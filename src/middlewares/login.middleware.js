@@ -2,6 +2,7 @@ import { SECRET_KEY } from '../config.js';
 import jwt from 'jsonwebtoken';
 
 export const validarToken = (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) {

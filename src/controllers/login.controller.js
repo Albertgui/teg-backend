@@ -60,12 +60,12 @@ export const loginUser = async(req, res) => {
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
         const userFound = result.rows[0];
-        console.log(userFound.pass, pass)
         const isMatch = await bcrypt.compare(pass, userFound.pass);
         if (!isMatch) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
         const token = jwt.sign({
+            id: userFound.id,
             name: username
         }, secretKey, {
             expiresIn: '1h'
@@ -80,12 +80,7 @@ export const loginUser = async(req, res) => {
 
 // Validar si existe el usuario
 export const validarUser = async (user) => {
-    try {
-        const parsedUser = user.toLowerCase();
-        const { rows } = await pool.query(`SELECT COUNT(*) FROM tm_user WHERE username = $1`, [parsedUser]);
-        const count = parseInt(rows[0].count, 10); 
-        return count > 0;
-    } catch (error) {
-        res.status(500).json({message: 'Error interno del servidor'});
-    }
+    const parsedUser = user.toLowerCase();
+    const { rows } = await pool.query(`SELECT COUNT(*) FROM tm_user WHERE username = $1`, [parsedUser]);
+    return parseInt(rows[0].count, 10) > 0;
 }

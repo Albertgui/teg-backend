@@ -2,12 +2,13 @@ import { pool } from '../db.js';
 
 // Obtener todas las partidas
 export const getAllPartidas = async(req, res) => {
+    const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('SELECT * FROM partidas ORDER BY created_at DESC');
+        const { rows } = await pool.query('SELECT p.* FROM partidas p INNER JOIN proyectos pr ON p.proyecto_id = pr.id WHERE pr.id_user = $1 ORDER BY p.created_at', [ id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No hay partidas registradas' });
         }
-        return res.status(200).json({ message: 'Datos encontrados con éxito', data: rows });
+        return res.status(200).json({ message: rows.length > 0 ? "Datos encontrados" : "No hay partidas", data: rows });
     } catch (error) {
         console.error("Error al obtener todas las partidas:", error);
         return res.status(500).json({message: 'Error interno del servidor'});
@@ -16,8 +17,9 @@ export const getAllPartidas = async(req, res) => {
 
 // Obtener vista de las partidas
 export const getAllPartidasView = async(req, res) => {
+    const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('SELECT * FROM vista_partidas ORDER BY estatus ASC, asignado_el DESC');
+        const { rows } = await pool.query('SELECT v.* FROM vista_partidas v INNER JOIN proyectos pr ON v.proyecto_id = pr.id WHERE pr.id_user = $1 ORDER BY v.estatus ASC, v.asignado_el DESC', [ id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No hay partidas registradas' });
         }
@@ -30,10 +32,10 @@ export const getAllPartidasView = async(req, res) => {
 
 // Obtener partida por ID
 export const getPartidaByID = async(req, res) => {
-    const params = req.params;
-    const { id } = params;
-    try {
-        const { rows } = await pool.query('SELECT * FROM partidas WHERE id = $1', [ id ]);
+    const { id } = req.params;
+    const id_user = req.usuario.id;
+    try { 
+        const { rows } = await pool.query('SELECT * FROM partidas WHERE id = $1 AND proyecto_id IN (SELECT id FROM proyectos WHERE id_user = $2)', [ id, id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No existe esa partida registrada' });
         }
@@ -46,14 +48,18 @@ export const getPartidaByID = async(req, res) => {
 
 // Crear una partida
 export const createPartida = async(req, res) => {
-    const body = req.body;
-    const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = body;
+    const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = req.body;
+    const id_user = req.usuario.id;
     try {
+        const projectCheck = await pool.query('SELECT id FROM proyectos WHERE id = $1 AND id_user = $2', [proyecto_id, id_user]);
+        if (projectCheck.rows.length === 0) {
+            return res.status(403).json({ message: 'No tienes permiso para añadir partidas a este proyecto' });
+        }
         const { rows } = await pool.query('INSERT INTO partidas (proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No es posible crear la partida' });
         }
-        return res.status(200).json({ message: 'Partida creada con éxito', data: rows[0] });
+        return res.status(201).json({ message: 'Partida creada con éxito', data: rows[0] });
     } catch (error) {
         if (error.code === '23503') {
             return res.status(400).json({
@@ -68,12 +74,11 @@ export const createPartida = async(req, res) => {
 
 // Editar una partida
 export const editPartida = async(req, res) => {
-    const params = req.params;
-    const body = req.body;
-    const { id } = params;
-    const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = body
+    const { id } = req.params;
+    const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada } = req.body;
+    const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('UPDATE partidas SET proyecto_id = COALESCE($1, proyecto_id), responsable_id = COALESCE($2, responsable_id), nombre_partida = COALESCE($3, nombre_partida), descripcion = COALESCE($4, descripcion), monto_total = COALESCE($5, monto_total), fecha_inicio = COALESCE($6, fecha_inicio), fecha_final_estimada = COALESCE($7, fecha_final_estimada) WHERE id = $8 RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada, id ]);
+        const { rows } = await pool.query('UPDATE partidas SET proyecto_id = COALESCE($1, proyecto_id), responsable_id = COALESCE($2, responsable_id), nombre_partida = COALESCE($3, nombre_partida), descripcion = COALESCE($4, descripcion), monto_total = COALESCE($5, monto_total), fecha_inicio = COALESCE($6, fecha_inicio), fecha_final_estimada = COALESCE($7, fecha_final_estimada) WHERE id = $8 AND proyecto_id IN (SELECT id FROM proyectos WHERE id_user = $9) RETURNING *', [ proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, fecha_inicio, fecha_final_estimada, id, id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No es posible editar la partida' });
         }
@@ -92,12 +97,10 @@ export const editPartida = async(req, res) => {
 
 // Completar una partida
 export const completePartida = async(req, res) => {
-    const params = req.params;
-    const body = req.body;
-    const { id } = params;
-    const fechaActual = new Date().toISOString();
+    const { id } = req.params;
+    const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('UPDATE partidas SET fecha_final_real = COALESCE($1, fecha_final_real) WHERE id = $2 RETURNING *', [ fechaActual, id ]);
+        const { rows } = await pool.query('UPDATE partidas SET fecha_final_real = CURRENT_DATE WHERE id = $1 AND proyecto_id IN (SELECT id FROM proyectos WHERE id_user = $2) RETURNING *', [ id, id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No es posible editar la partida' });
         }
@@ -116,10 +119,10 @@ export const completePartida = async(req, res) => {
 
 // Eliminar partida
 export const deletePartida = async(req, res) => {
-    const param = req.params;
-    const { id }= param
+    const { id } = req.params;
+    const id_user = req.usuario.id;
     try {
-        const { rows } = await pool.query('DELETE FROM partidas WHERE id = $1 RETURNING *', [ id ]);
+        const { rows } = await pool.query('DELETE FROM partidas WHERE id = $1 AND proyecto_id IN (SELECT id FROM proyectos WHERE id_user = $2) RETURNING *', [ id, id_user ]);
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No se encontró la partida a eliminar' });
         }
