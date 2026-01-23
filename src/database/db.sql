@@ -122,3 +122,23 @@ SELECT
     porcentaje_avance,
     estado
 FROM proyectos;
+
+CREATE OR REPLACE VIEW vista_partidas AS
+SELECT 
+    p.id AS partida_id,
+    p.proyecto_id,
+    p.responsable_id,
+    p.nombre_partida,
+    p.descripcion,
+    COALESCE(r.nombre_completo, 'Sin asignar') AS nombre_responsable,
+    COALESCE(r.especialidad, 'N/A') AS rol_responsable,
+    p.monto_total AS presupuesto,
+    p.porcentaje_avance,
+    p.fecha_inicio AS asignado_el,
+    p.fecha_final_estimada AS finaliza_en,
+    CASE 
+        WHEN p.fecha_final_real IS NOT NULL THEN 1 
+        ELSE 0 
+    END AS estatus
+FROM partidas p
+LEFT JOIN responsables r ON p.responsable_id = r.id;
