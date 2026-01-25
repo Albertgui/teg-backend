@@ -44,14 +44,21 @@ export const getProjectById = async (req, res) => {
 }
 
 // Crear un proyecto
-export const createProject = async (req, res) => {
-    const { nombre, descripcion, ubicacion, monto_total_operacion, presupuesto_planificado, fecha_inicio, fecha_final_estimada } = req.body;
+export const createProject = async (req, res) => { 
+    const { nombre, descripcion, ubicacion, presupuesto_planificado, margen_objetivo, fecha_inicio, fecha_final_estimada } = req.body;
     const id_user = req.usuario.id;
     try {
-        const insertQuery = `INSERT INTO proyectos (id_user, nombre, descripcion, ubicacion, monto_total_operacion, presupuesto_planificado, fecha_inicio, fecha_final_estimada) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
-        const result = await pool.query(insertQuery, [id_user, nombre, descripcion, ubicacion, monto_total_operacion, presupuesto_planificado, fecha_inicio, fecha_final_estimada]);
+        const costo = Number(presupuesto_planificado);
+        const margenDecimal = Number(margen_objetivo) / 100;
+        let monto_total_operacion = margenDecimal < 1 ? (costo / (1 - margenDecimal)) : costo;
+        monto_total_operacion = Math.round(monto_total_operacion * 100) / 100;
+        const insertQuery = `INSERT INTO proyectos (id_user, nombre, descripcion, ubicacion, monto_total_operacion, presupuesto_planificado, margen_objetivo, fecha_inicio, fecha_final_estimada) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`;
+        const result = await pool.query(insertQuery, [ id_user,  nombre,  descripcion,  ubicacion,  monto_total_operacion,  costo,  margen_objetivo,  fecha_inicio,  fecha_final_estimada ]);
         const { rows } = await pool.query(`${PROJECT_QUERY_BASE} WHERE id = $1`, [result.rows[0].id]);
-        return res.status(201).json({ message: "Proyecto creado con éxito", data: rows[0] });
+        return res.status(201).json({ 
+            message: "Proyecto creado con éxito", 
+            data: rows[0] 
+        });
     } catch (error) {
         console.error("Error al crear el proyecto:", error);
         return res.status(500).json({ message: 'Error interno del servidor' });

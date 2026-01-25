@@ -127,6 +127,7 @@ CREATE OR REPLACE VIEW vista_partidas AS
 SELECT 
     p.id AS partida_id,
     p.proyecto_id,
+    pr.id_user,
     p.responsable_id,
     p.nombre_partida,
     p.descripcion,
@@ -141,4 +142,8 @@ SELECT
         ELSE 0 
     END AS estatus
 FROM partidas p
-LEFT JOIN responsables r ON p.responsable_id = r.id;
+LEFT JOIN responsables r ON p.responsable_id = r.id
+INNER JOIN proyectos pr ON p.proyecto_id = pr.id; 
+
+ALTER TABLE proyectos 
+ADD COLUMN margen_objetivo NUMERIC(5, 2) DEFAULT 0;

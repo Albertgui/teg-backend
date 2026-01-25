@@ -20,22 +20,24 @@ export const getAllPartidasView = async (req, res) => {
     const { id } = req.params; 
     const id_user = req.usuario.id; 
     try {
-        const query = `
-            SELECT v.* FROM vista_partidas v INNER JOIN proyectos pr ON v.proyecto_id = pr.id WHERE v.proyecto_id = $1 AND pr.id_user = $2 ORDER BY v.estatus ASC, v.finaliza_en ASC`;
+        const query = `SELECT * FROM vista_partidas WHERE proyecto_id = $1 AND id_user = $2 ORDER BY estatus ASC, finaliza_en ASC`;
         const { rows } = await pool.query(query, [id, id_user]);
         if (rows.length === 0) {
             return res.status(200).json({ 
-                message: 'No hay partidas registradas o no tienes acceso a este proyecto', 
+                success: true,
+                message: 'No se encontraron partidas para este proyecto.', 
                 data: [] 
             });
         }
         return res.status(200).json({ 
+            success: true,
             message: 'Partidas obtenidas con éxito', 
             data: rows 
         });
     } catch (error) {
-        console.error("Error en getAllPartidasView:", error);
+        console.error("Error en getAllPartidasView:", error.message);
         return res.status(500).json({ 
+            success: false,
             message: 'Error interno del servidor al procesar la vista de partidas' 
         });
     }
@@ -61,7 +63,6 @@ export const getPartidaByID = async (req, res) => {
 export const createPartida = async (req, res) => {
     const { proyecto_id, responsable_id, nombre_partida, descripcion, monto_total, porcentaje_avance, fecha_inicio, fecha_final_estimada } = req.body;
     const id_user = req.usuario.id;
-
     try {
         const projectCheck = await pool.query('SELECT id FROM proyectos WHERE id = $1 AND id_user = $2', [proyecto_id, id_user]);
         if (projectCheck.rows.length === 0) {
