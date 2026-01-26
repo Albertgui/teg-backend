@@ -82,6 +82,7 @@ export const createPartida = async (req, res) => {
     }
 }
 
+
 // Editar una partida
 export const editPartida = async (req, res) => {
     const { id } = req.params;
