@@ -4,5 +4,6 @@ export const DB_PASSWORD = process.env.DB_PASSWORD;
 export const DB_DATABASE = process.env.DB_DATABASE;
 export const DB_PORT = process.env.DB_PORT;
 export const SECRET_KEY = process.env.SECRET_KEY;
-
+export const BOT_TOKEN = process.env.BOT_TOKEN;
+export const CHAT_ID = process.env.CHAT_ID;
 export const PORT = process.env.PORT || 3000;

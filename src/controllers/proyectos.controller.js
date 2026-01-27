@@ -1,16 +1,7 @@
 import { pool } from '../db.js';
+import { sendProjectNotification } from '../services/telegram.js';
 
-// Query base reutilizable para incluir cálculos de rentabilidad
-const PROJECT_QUERY_BASE = `
-    SELECT *, 
-    (monto_total_operacion - presupuesto_usado) AS ganancia_actual, 
-    CASE 
-        WHEN monto_total_operacion > 0 
-        THEN ROUND(((monto_total_operacion - presupuesto_usado) / monto_total_operacion) * 100, 2) 
-        ELSE 0 
-    END AS porcentaje_margen 
-    FROM proyectos
-`;
+const PROJECT_QUERY_BASE = `SELECT *, (monto_total_operacion - presupuesto_usado) AS ganancia_actual, CASE WHEN monto_total_operacion > 0 THEN ROUND(((monto_total_operacion - presupuesto_usado) / monto_total_operacion) * 100, 2) ELSE 0 END AS porcentaje_margen FROM proyectos`;
 
 // Obtener todos los proyectos
 export const getAllProject = async (req, res) => {
@@ -53,8 +44,9 @@ export const createProject = async (req, res) => {
         let monto_total_operacion = margenDecimal < 1 ? (costo / (1 - margenDecimal)) : costo;
         monto_total_operacion = Math.round(monto_total_operacion * 100) / 100;
         const insertQuery = `INSERT INTO proyectos (id_user, nombre, descripcion, ubicacion, monto_total_operacion, presupuesto_planificado, margen_objetivo, fecha_inicio, fecha_final_estimada) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`;
-        const result = await pool.query(insertQuery, [ id_user,  nombre,  descripcion,  ubicacion,  monto_total_operacion,  costo,  margen_objetivo,  fecha_inicio,  fecha_final_estimada ]);
+        const result = await pool.query(insertQuery, [ id_user, nombre, descripcion, ubicacion, monto_total_operacion, costo, margen_objetivo, fecha_inicio, fecha_final_estimada ]);
         const { rows } = await pool.query(`${PROJECT_QUERY_BASE} WHERE id = $1`, [result.rows[0].id]);
+        sendProjectNotification(rows[0], "NUEVO PROYECTO").catch(console.error);
         return res.status(201).json({ 
             message: "Proyecto creado con éxito", 
             data: rows[0] 
@@ -77,6 +69,7 @@ export const editProject = async (req, res) => {
             return res.status(404).json({ message: 'No se pudo editar el proyecto o no tienes permisos' });
         }
         const { rows } = await pool.query(`${PROJECT_QUERY_BASE} WHERE id = $1`, [id]);
+        sendProjectNotification(rows[0], "EDICIÓN").catch(console.error);
         return res.status(200).json({ message: "Proyecto editado con éxito", data: rows[0] });
     } catch (error) {
         console.error("Error al editar el proyecto:", error);
@@ -89,10 +82,12 @@ export const deleteProject = async (req, res) => {
     const id_user = req.usuario.id;
     const { id } = req.params;
     try {
-        const { rows } = await pool.query('DELETE FROM proyectos WHERE id = $1 AND id_user = $2 RETURNING *', [id, id_user]);
-        if (rows.length === 0) {
+        const projectData = await pool.query(`${PROJECT_QUERY_BASE} WHERE id = $1 AND id_user = $2`, [id, id_user]);
+        if (projectData.rows.length === 0) {
             return res.status(403).json({ message: 'No tienes permisos o el proyecto no existe' });
         }
+        await pool.query('DELETE FROM proyectos WHERE id = $1', [id]);
+        sendProjectNotification(projectData.rows[0], "ELIMINACIÓN").catch(console.error);
         return res.status(200).json({ message: "Proyecto eliminado con éxito" });
     } catch (error) {
         console.error("Error al eliminar el proyecto:", error);
